@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Punto Verde Pro | Gestión de Reciclaje Circular</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+<div id="login-overlay" class="overlay active">
+    <div class="login-card animate-in">
+        <div class="login-header">
+            <i class="fas fa-leaf fa-3x logo-icon"></i>
+            <h1>Punto Verde</h1>
+            <p>Inicia sesión para acceder al panel eco-amigable</p>
+        </div>
+        <div class="form-group">
+            <div class="input-icon">
+                <i class="fas fa-user"></i>
+                <input id="login-nombre" type="text" placeholder="Nombre completo">
+            </div>
+            <div class="input-icon">
+                <i class="fas fa-envelope"></i>
+                <input id="login-email" type="email" placeholder="Correo electrónico ">
+            </div>
+            <div class="input-icon">
+                <i class="fas fa-lock"></i>
+                <input id="login-password" type="password" placeholder="Contraseña ">
+            </div>
+        </div>
+        <button class="btn-primary btn-block" onclick="loginInicial()">Entrar al Sistema</button>
+    </div>
+</div>
+
+<div id="sidebar" class="sidebar hidden">
+    <div class="logo">🌱 Punto Verde</div>
+    <div class="user-status">
+        <i class="fas fa-circle-user fa-2x"></i>
+        <span id="status-nombre">Usuario</span>
+    </div>
+    <nav>
+        <button onclick="mostrar('perfil')"><i class="fas fa-user-circle"></i> Mi Perfil</button>
+        <button onclick="mostrar('reciclaje')"><i class="fas fa-recycle"></i> Reciclar</button>
+        <button onclick="mostrar('mapa')"><i class="fas fa-map-marked-alt"></i> Puntos de Entrega</button>
+        <button onclick="mostrar('catalogo')"><i class="fas fa-gift"></i> Recompensas</button>
+        <button onclick="mostrar('ranking')"><i class="fas fa-chart-line"></i> Ranking</button>
+        <button onclick="accesoAdmin()" class="admin-link"><i class="fas fa-shield-alt"></i> Panel Admin</button>
+        <button onclick="logout()" class="logout-link"><i class="fas fa-sign-out-alt"></i> Salir</button>
+    </nav>
+</div>
+
+<main id="main-content" class="content hidden">
+    
+    <div id="perfil" class="card hidden">
+        <div class="card-header">
+            <h2>Mi Cuenta Ecológica</h2>
+            <div class="dropdown">
+                <button class="dropbtn"><i class="fas fa-ellipsis-v"></i></button>
+                <div class="dropdown-content">
+                    <a href="#" onclick="toggleEdit()"><i class="fas fa-edit"></i> Editar Datos</a>
+                    <a href="#" onclick="generarReporteUsuario()"><i class="fas fa-file-download"></i> Mi Actividad</a>
+                    <a href="#" onclick="darDeBaja()" class="danger"><i class="fas fa-trash"></i> Dar de Baja</a>
+                </div>
+            </div>
+        </div>
+        <div class="profile-layout">
+            <div class="stat-card">
+                <i class="fas fa-star fa-2x icon-puntos"></i>
+                <span class="label">Puntos Disponibles</span>
+                <span id="puntos" class="value">0</span>
+            </div>
+            <div class="user-details">
+                <p><strong><i class="fas fa-user-tag"></i> Nombre:</strong> <span id="info-nombre">---</span></p>
+                <p><strong><i class="fas fa-envelope-open"></i> Email:</strong> <span id="info-email">---</span></p>
+            </div>
+        </div>
+        <div id="edit-section" class="hidden edit-box">
+            <input id="edit-nombre" placeholder="Nuevo nombre de usuario">
+            <button class="btn-secondary" onclick="actualizarPerfil()">Guardar Cambios</button>
+        </div>
+    </div>
+
+    <div id="reciclaje" class="card hidden">
+        <h2><i class="fas fa-plus-circle"></i> Registrar Nueva Entrega</h2>
+        <div class="form-group">
+            <label><i class="fas fa-box"></i> Tipo de Material</label>
+            <select id="material">
+                <option value="Plástico">Plástico PET</option>
+                <option value="Vidrio">Vidrio</option>
+                <option value="Metal">Aluminio/Latas</option>
+                <option value="Papel">Papel y Cartón</option>
+            </select>
+            <label><i class="fas fa-weight-hanging"></i> Cantidad (kg o Unidades)</label>
+            <input id="cantidad" type="number" placeholder="0.00">
+        </div>
+        <button class="btn-primary btn-block" onclick="registrarReciclaje()">Enviar para Validación</button>
+    </div>
+
+    <div id="catalogo" class="card hidden">
+        <div class="card-header">
+            <h2><i class="fas fa-store"></i> Tienda de Recompensas</h2>
+            <span class="badge">Vigencia Sincronizada</span>
+        </div>
+        <div id="lista-recompensas" class="rewards-grid">
+            </div>
+    </div>
+
+    <div id="mapa" class="card hidden">
+        <h2><i class="fas fa-map-signs"></i> Centros Autorizados</h2>
+        <div class="map-box"><i class="fas fa-map-marker-alt fa-3x"></i><br> Mapa Interactivo RF-06</div>
+        <div id="lista-centros" class="info-list">
+            </div>
+    </div>
+
+    <div id="ranking" class="card hidden">
+        <h2><i class="fas fa-medal"></i> Ranking de Eco-Líderes</h2>
+        <table class="ranking-table">
+            <thead>
+                <tr>
+                    <th>Posición</th>
+                    <th>Usuario</th>
+                    <th>Puntos Acumulados</th>
+                </tr>
+            </thead>
+            <tbody id="body-ranking"></tbody>
+        </table>
+    </div>
+
+    <div id="admin" class="card hidden admin-zone">
+        <div class="card-header">
+            <h2><i class="fas fa-user-shield"></i> Panel Administrativo Protegido</h2>
+            <button class="btn-secondary" onclick="generarReporteGeneral()">Generar Reporte Global (RF-15)</button>
+        </div>
+        <h3><i class="fas fa-clipboard-check"></i> Validaciones Pendientes (RF-05)</h3>
+        <div id="pendientes-admin" class="admin-list"></div>
+    </div>
+
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
