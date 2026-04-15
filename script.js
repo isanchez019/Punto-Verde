@@ -1,228 +1,180 @@
-/**
- * CLASES DEL SISTEMA (Basado en Diagrama de Clases)
- */
-class Usuario {
-    constructor(id, nombre, email, password) {
-        this.id = id;
-        this.nombre = nombre;
-        this.email = email;
-        this.password = password;
-        this.puntos = 0;
-    }
-}
-
-class Administrador extends Usuario {
-    validarReciclaje(idRegistro) {
-        const index = db.registros.findIndex(r => r.id === idRegistro);
-        if (index !== -1) {
-            const reg = db.registros.splice(index, 1)[0];
-            // RF-07: Asignación automática de puntos
-            db.usuarioActual.puntos += 10; 
-            // RF-13: Notificación personalizada
-            this.enviarNotificacion(`Reciclaje de ${reg.material} validado: +10 puntos.`);
-            actualizarUI();
-            renderAdminPanel(); // Refrescar lista
-        }
-    }
-    enviarNotificacion(msj) {
-        // En una app real esto usaría un sistema de notificaciones en UI, no alerts.
-        alert("🔔 Notificación Eco: " + msj);
-    }
-}
-
-// "Base de Datos" temporal
-const db = {
-    usuarios: [],
-    usuarioActual: null,
-    registros: [],
-    recompensas: [
-        { id: 1, nombre: "Curso Huerto Urbano Pro", pts: 30, empresa: "EcoEduca", icon: "fa-seedling" },
-        { id: 2, nombre: "Bono Descuento Super", pts: 50, empresa: "Alianza Natural", icon: "fa-shopping-basket" },
-        { id: 3, nombre: "Kit Reciclaje Doméstico", pts: 100, empresa: "Punto Verde Corp", icon: "fa-recycle" }
-    ],
-    centros: [
-        { id: 1, nombre: "Punto Verde Centro", materiales: "PET, Vidrio", horario: "8:00 - 17:00", zona: "Norte" },
-        { id: 2, nombre: "Ecopunto Industrial", materiales: "Metal, Papel", horario: "9:00 - 18:00", zona: "Sur" }
-    ]
+// MODELO DE DATOS SIMULADO (DB Temporal)
+let db = {
+    user: null,
+    pendientes: []
 };
 
-/**
- * LÓGICA DE ACCESO (NUEVO FLUJO)
- */
+let map;
+
+// LOGIN Y REGISTRO INICIAL (RF-01)
 function loginInicial() {
     const n = document.getElementById("login-nombre").value;
     const e = document.getElementById("login-email").value;
     const p = document.getElementById("login-password").value;
 
-    if(!n || !e || !p) return alert("Por favor complete todos los campos para iniciar.");
-
-    // Crear sesión simulada con CUALQUIER dato
-    db.usuarioActual = new Usuario(Date.now(), n, e, p);
-    db.usuarios.push(db.usuarioActual);
-    
-    // Desbloquear Interfaz
-    document.getElementById("login-overlay").classList.remove("active");
-    document.getElementById("sidebar").classList.remove("hidden");
-    document.getElementById("main-content").classList.remove("hidden");
-
-    actualizarUI();
-    mostrar('perfil'); // Ir al perfil por defecto
-}
-
-/**
- * ACCESO RESTRINGIDO AL ADMIN (NUEVA REGLA)
- */
-function accesoAdmin() {
-    const email = prompt("Ingrese correo de administrador:");
-    const pass = prompt("Ingrese contraseña:");
-
-    // Regla estricta solicitada
-    if(email === "admin@puntoverde.com" && pass === "123") {
-        alert("Acceso concedido al Panel Admin.");
-        mostrar('admin');
-    } else {
-        alert("❌ Credenciales de administrador incorrectas. Acceso denegado.");
-    }
-}
-
-function logout() {
-    if(confirm("¿Seguro que desea salir del sistema?")) {
-        location.reload(); // Reiniciar app
-    }
-}
-
-/**
- * LÓGICA DE INTERFAZ Y NAVEGACIÓN
- */
-function mostrar(id) {
-    document.querySelectorAll(".card").forEach(c => c.classList.add("hidden"));
-    const target = document.getElementById(id);
-    target.classList.remove("hidden");
-    target.classList.add("animate-in");
-
-    // Cargas dinámicas
-    if(id === 'catalogo') renderRecompensas();
-    if(id === 'mapa') renderCentros();
-    if(id === 'ranking') renderRanking();
-    if(id === 'admin') renderAdminPanel();
-}
-
-function toggleEdit() {
-    document.getElementById("edit-section").classList.toggle("hidden");
-}
-
-/**
- * RF-01/RF-03: GESTIÓN DE USUARIO
- */
-function actualizarPerfil() {
-    const nuevo = document.getElementById("edit-nombre").value;
-    if(nuevo) {
-        db.usuarioActual.nombre = nuevo;
+    if(n && e && p) {
+        db.user = { 
+            id: "ID-" + Math.floor(1000 + Math.random()*9000), // RF-01
+            nombre: n, 
+            email: e, 
+            puntos: 0 
+        };
+        document.getElementById("login-overlay").style.display = "none";
+        document.getElementById("app-structure").style.display = "block";
         actualizarUI();
-        toggleEdit();
-        alert("Perfil actualizado. ¡Sigue reciclando!");
+        initMap(); // Inicializa el mapa real sin bloqueos
+        renderAliados(); // 3 recompensas por aliado
+        renderMapInfo(); // Nueva Info detallada debajo del mapa
+    } else {
+        alert("Por favor completa todos los datos para registrarte.");
     }
 }
 
 function actualizarUI() {
-    if(!db.usuarioActual) return;
-    document.getElementById("info-nombre").innerText = db.usuarioActual.nombre;
-    document.getElementById("info-email").innerText = db.usuarioActual.email;
-    document.getElementById("puntos").innerText = db.usuarioActual.puntos;
-    document.getElementById("status-nombre").innerText = db.usuarioActual.nombre;
+    document.getElementById("u-id").innerText = db.user.id;
+    document.getElementById("u-nombre").innerText = db.user.nombre;
+    document.getElementById("u-email").innerText = db.user.email;
+    document.getElementById("u-puntos").innerText = db.user.puntos;
 }
 
-/**
- * RF-04/RF-05: PROCESO DE RECICLAJE
- */
-function registrarReciclaje() {
-    const mat = document.getElementById("material").value;
-    const cant = document.getElementById("cantidad").value;
-
-    if(cant <= 0) return alert("Ingrese una cantidad válida mayor a cero.");
-
-    const reg = { id: Date.now(), user: db.usuarioActual.nombre, material: mat, cant: cant };
-    db.registros.push(reg);
-    alert("🚀 Registro enviado. Un administrador validará tu entrega pronto para sumarte puntos.");
+// MODIFICACIÓN DE DATOS (RF-03, Omitida anteriormente)
+function toggleEdit() {
+    const panel = document.getElementById("edit-panel");
+    panel.style.display = (panel.style.display === "none" || panel.style.display === "") ? "block" : "none";
 }
 
-function renderAdminPanel() {
-    const lista = document.getElementById("pendientes-admin");
-    lista.innerHTML = db.registros.length === 0 ? "<p class='empty-state'><i class='fas fa-check-circle'></i> No hay validaciones pendientes.</p>" : "";
+function guardarCambios() {
+    const n = document.getElementById("edit-nombre").value;
+    const e = document.getElementById("edit-email").value;
+    if(n) db.user.nombre = n;
+    if(e) db.user.email = e;
+    actualizarUI();
+    toggleEdit();
+    alert("Datos actualizados correctamente.");
+}
+
+function mostrar(id) {
+    document.querySelectorAll(".page-card").forEach(p => p.style.display = "none");
+    document.getElementById(id).style.display = "block";
+    // Refrescar Leaflet si se muestra el mapa
+    if(id === 'mapa' && map) setTimeout(() => map.invalidateSize(), 200);
+}
+
+// MAPA REAL (Leaflet + CartoDB para evitar 403)
+function initMap() {
+    // Coordenadas de San Pedro de Montes de Oca
+    map = L.map('real-map').setView([9.9333, -84.0500], 15);
     
-    db.registros.forEach(r => {
-        const item = document.createElement("div");
-        item.className = "admin-item animate-in";
-        item.innerHTML = `
-            <span><i class="fas fa-user-clock"></i> <strong>${r.user}</strong>: ${r.cant}kg de ${r.material}</span>
-            <button onclick="validarAccion(${r.id})" class="btn-success btn-sm">Validar (RF-05)</button>
-        `;
-        lista.appendChild(item);
-    });
+    // CAMBIO CLAVE: Usamos CartoDB para evitar error 403 local (Referer)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CARTO'
+    }).addTo(map);
+
+    L.marker([9.9333, -84.0500]).addTo(map).bindPopup('Centro Norte');
+    L.marker([9.9360, -84.0420]).addTo(map).bindPopup('Eco-Punto Sur');
+    L.marker([9.9310, -84.0550]).addTo(map).bindPopup('Punto Express 24h');
 }
 
-function validarAccion(id) {
-    const admin = new Administrador(); // Usar clase Admin para la validación
-    admin.validarReciclaje(id);
+// Nueva Info detallada debajo del mapa (RF-06 Solicitada)
+function renderMapInfo() {
+    const centros = [
+        {h: "Centro Norte", t: "Metales/RAEE", ho: "L-V 7am-7pm", s: "open"},
+        {h: "Eco-Punto Sur", t: "Plásticos/Vidrio", ho: "L-S 8am-6pm", s: "open"},
+        {h: "Punto Express 24h", t: "Papel/Cartón", ho: "24/7", s: "maintenance"}
+    ];
+    document.getElementById("map-info-points").innerHTML = centros.map(c => `
+        <div class="loc-card">
+            <h4>${c.h}</h4>
+            <p><strong>Tipo:</strong> ${c.t}</p>
+            <p><strong>Horario:</strong> ${c.ho}</p>
+            <span class="status-badge ${c.s}">${c.s === 'open' ? 'Abierto' : 'Mantenimiento'}</span>
+        </div>
+    `).join('');
 }
 
-/**
- * RF-08/RF-14: CATÁLOGO Y RANKING
- */
-function renderRecompensas() {
-    const grid = document.getElementById("lista-recompensas");
-    grid.innerHTML = "";
-    db.recompensas.forEach(r => {
-        grid.innerHTML += `
-            <div class="reward-card animate-in">
-                <i class="fas ${r.icon} fa-2x reward-icon"></i>
-                <h4>${r.nombre}</h4>
-                <p class="empresa-label">${r.empresa}</p>
-                <span class="pts-tag"><i class="fas fa-star"></i> ${r.pts} Puntos</span>
-                <button onclick="canjear(${r.pts})" class="btn-primary btn-sm btn-block">Canjear Recompensa</button>
-            </div>
-        `;
-    });
+// ALIADOS Y RECOMPENSAS CON CÓDIGO ÚNICO (3 por Socio, RF-08/09)
+function renderAliados() {
+    const aliados = [
+        {e: "Súper La Cosecha", items: [{n:"Vale compra 10%", p:80}, {n:"Pack Frutas Eco", p:120}, {n:"Bolsa Reutilizable", p:30}]},
+        {e: "Ferretería El Clavo", items: [{n:"Kit Herramientas", p:350}, {n:"Bombillas LED (x2)", p:60}, {n:"Pintura Base Agua", p:180}]},
+        {e: "Mascotas Huellitas", items: [{n:"Baño Estético", p:90}, {n:"Juguete Caucho", p:40}, {n:"Consulta Vet", p:220}]},
+        {e: "Instituto TecnoMente", items: [{n:"Beca Curso Excel", p:500}, {n:"Taller Reparación PC", p:250}, {n:"Certificación Pro", p:800}]}
+    ];
+    
+    document.getElementById("aliados-grid").innerHTML = aliados.map(a => `
+        <div class="partner-card">
+            <h3>${a.e}</h3>
+            ${a.items.map(i => `
+                <div class="reward-item">
+                    <span>${i.n}</span>
+                    <button class="btn-orange-glow" style="padding:6px 12px; width:auto; margin:0; font-size:0.85rem" onclick="canjearRecompensa(${i.p}, '${i.n}')">${i.p} Pts</button>
+                </div>
+            `).join('')}
+        </div>
+    `).join('');
 }
 
-function canjear(costo) {
-    if(db.usuarioActual.puntos >= costo) {
-        db.usuarioActual.puntos -= costo; // RF-08: Canje
+// CANJE CON GENERACIÓN DE CÓDIGO ÚNICO (RF-08 Solicitada)
+function canjearRecompensa(costo, nombrePremio) {
+    if(db.user.puntos >= costo) {
+        // Validación y descuento
+        db.user.puntos -= costo;
         actualizarUI();
-        // RF-13: Notificación de canje exitoso
-        alert("🎉 ¡Canje exitoso! Tu cupón digital ha sido generado. Revisa tu correo simulado.");
+        
+        // Generación de Código Único
+        const codigoUnico = `RECOMP-${Math.floor(1000 + Math.random()*9000)}-PV`;
+        
+        // Confirmación con Código
+        alert(`¡Canje exitoso!\\nPremio: ${nombrePremio}\\nCódigo Único de Canje: ${codigoUnico}\\nPreséntalo en el establecimiento aliado.`);
     } else {
-        alert("❌ Puntos insuficientes. ¡Sigue reciclando para obtener esta recompensa!");
+        alert("Puntos insuficientes para este beneficio.");
     }
 }
 
-function renderRanking() {
-    const body = document.getElementById("body-ranking");
-    body.innerHTML = "";
-    // RF-14: Ranking dinámico ordenado
-    const sorted = [...db.usuarios].sort((a,b) => b.puntos - a.puntos);
-    sorted.forEach((u, i) => {
-        const medal = i < 3 ? `<i class="fas fa-medal medal-${i+1}"></i>` : `#${i+1}`;
-        body.innerHTML += `<tr><td>${medal}</td><td>${u.nombre}</td><td class="pts-col">${u.puntos} pts</td></tr>`;
-    });
+// GESTIÓN DE RECICLAJE (RF-04)
+function ejecutarRegistro() {
+    const cant = document.getElementById("r-cantidad").value;
+    if(cant > 0) {
+        // Registro de Solicitud con ID Usuario
+        db.pendientes.push({ id: Date.now(), user: db.user.id, peso: cant });
+        alert("Solicitud de reciclaje enviada al Admin para validación.");
+        mostrar('perfil');
+    } else {
+        alert("Ingrese una cantidad válida.");
+    }
 }
 
-function renderCentros() {
-    const lista = document.getElementById("lista-centros");
-    lista.innerHTML = "";
-    db.centros.forEach(c => {
-        lista.innerHTML += `
-            <div class="info-item animate-in">
-                <strong><i class="fas fa-building"></i> ${c.nombre}</strong><br>
-                <span>♻️ Materiales: ${c.materiales}</span><br>
-                <span>⏰ Horario: ${c.horario}</span><br>
-                <small class="zona-label">Zona ${c.zona}</small>
+// PANEL ADMIN (RF-05, Clave: 123)
+function accesoAdmin() {
+    const pass = prompt("Clave de Administrador:");
+    if(pass === "123") {
+        mostrar('admin');
+        renderAdmin();
+    } else {
+        alert("Clave incorrecta.");
+    }
+}
+
+// VALIDACIÓN ADMIN (RF-05, RF-07)
+function renderAdmin() {
+    const cont = document.getElementById("lista-pendientes");
+    if(db.pendientes.length === 0) cont.innerHTML = "<p>No hay solicitudes pendientes.</p>";
+    else cont.innerHTML = db.pendientes.map(p => `
+        <div class="admin-item">
+            <div class="admin-info">
+                <strong>Usuario: ${p.user}</strong><br>
+                <span>Peso Solicitado: ${p.peso} Kg</span>
             </div>
-        `;
-    });
+            <button onclick="validarEntrega(${p.id})" style="background:var(--primary); color:white; border:none; padding:10px; border-radius:12px; cursor:pointer">VALIDAR</button>
+        </div>
+    `).join('');
 }
 
-function generarReporteGeneral() {
-    // RF-15: Reporte simulado
-    alert(`📊 REPORTE GLOBAL DE IMPACTO (RF-15):\n----------------------------------\nTotal Eco-Líderes: ${db.usuarios.length}\nReciclajes Validados: 1.450 kg\nPuntos Emitidos: ${db.usuarios.reduce((acc, u) => acc + u.puntos, 0)} pts\nCo2 Ahorrado (Simulado): 3.2 Toneladas`);
+function validarEntrega(id) {
+    // Aprobación y suma automática de puntos
+    db.user.puntos += 100; // Asignación automática RF-07
+    db.pendientes = db.pendientes.filter(x => x.id !== id);
+    actualizarUI();
+    renderAdmin();
+    alert("¡Actividad validada! Puntos asignados automáticamente.");
 }
